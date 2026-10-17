@@ -1,4 +1,4 @@
---!strict
+--system9999
 -- InertiaUI v4.0
 -- A modular, type-safe ImGui framework for Roblox.
 
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ==============================================================================
--- MODULE: Types & Constants
+-- MODULE: types & constants
 -- ==============================================================================
 
 type Color3 = typeof(Color3.new())
@@ -36,7 +36,7 @@ export type Control = {
 }
 
 -- ==============================================================================
--- MODULE: Theme Manager
+-- MODULE: personilzation managetr
 -- ==============================================================================
 
 local ThemeManager = {}
@@ -90,7 +90,7 @@ function ThemeManager:Subscribe(callback: (theme: ThemeConfig) -> ())
 end
 
 -- ==============================================================================
--- MODULE: UI Primitives
+-- MODULE: uI primitives
 -- ==============================================================================
 
 local UI = {}
