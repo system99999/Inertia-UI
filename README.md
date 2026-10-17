@@ -1,185 +1,297 @@
 
-# InertiaLib
 
-Dear ImGui style UI framework for Roblox Luau. Windows, tabs, and controls only. No gameplay features.
+# InertiaUI
 
-Load `imgui_lib.lua` in an executor. It registers itself on `getgenv().ImGuiLib` (or `_G.ImGuiLib`).
+A modular, type-safe ImGui framework for Roblox Luau. Designed for performance, extensibility, and clean architecture.
 
-## Create the library
+---
 
-One ScreenGui. Calling `new` again with the same name replaces the old gui.
+## Table of Contents
+- [Installation & Setup](#installation--setup)
+- [Base Menu Initialization](#base-menu-initialization)
+- [Tabs & Sections](#tabs--sections)
+- [Controls](#controls)
+  - [Checkbox](#checkbox)
+  - [Slider](#slider)
+  - [Dropdown](#dropdown)
+  - [Button](#button)
+  - [Keybind](#keybind)
+  - [Text Input](#text-input)
+- [Theming & Personalization](#theming--personalization)
+- [Configuration System](#configuration-system)
+- [API Reference](#api-reference)
+
+---
+
+## Installation & Setup
+
+1. Place `source.lua` in your executor's script environment or require it via a module script.
+2. Ensure your executor supports `getgenv()` or standard Luau module loading.
 
 ```lua
-local UI = getgenv().ImGuiLib.new({ Name = "MyMenu" })
+-- If using an executor with getgenv:
+local InertiaUI = getgenv().InertiaUI
+
+-- If using a ModuleScript:
+local InertiaUI = require(script.Parent.InertiaUI)
 ```
 
-## Window
+---
 
-A draggable framed panel. `Title` is the small header. `Size` and `Position` are UDim2.
+## Base Menu Initialization
+
+To create the main menu window, call `InertiaUI.Create()`. This returns a Window object that serves as the root of your UI.
 
 ```lua
-local main = UI:Window({
-	Title = "main",
-	Size = UDim2.fromOffset(560, 640),
-	Position = UDim2.fromOffset(40, 80),
-})
+-- Create a new window with the default "Rounded" theme
+local Menu = InertiaUI.Create("Main Menu", "Rounded")
+
+-- Or, create with the "Square" theme
+local Menu = InertiaUI.Create("Main Menu", "Square")
 ```
 
-## Tab
+---
 
-Text tab with an accent underline on the active one. The first tab is selected.
+## Tabs & Sections
+
+Organize your UI using Tabs. Each tab acts as a container for your controls.
 
 ```lua
-local legit = main:Tab("Legit")
-main:Tab("Players")
-main:Tab("Visuals")
-main:Tab("Misc")
+-- Add a new tab to the menu
+local CombatTab = Menu:Tab("Combat")
+local VisualsTab = Menu:Tab("Visuals")
+local SettingsTab = Menu:Tab("Settings")
+
+-- Add a section to group related controls (Optional but recommended)
+local AimbotSection = CombatTab:Section("Aimbot Settings")
+local ESPSection = VisualsTab:Section("Player ESP")
 ```
 
-## Column
+---
 
-Half-width scrolling column inside a tab. Call it twice for the two-pane layout.
+## Controls
 
-```lua
-local left = legit:Column()
-local right = legit:Column()
-```
+All controls are added directly to a Tab or a Section. They return a Control object that allows you to read, write, and listen to state changes.
 
-## Section
+### Checkbox
 
-Labeled stack of controls. On a window with no tabs, call `Window:Section` instead of going through a column.
+A boolean toggle.
 
 ```lua
-local aim = left:Section("Aim Assist")
+local aimbotEnabled = CombatTab:AddCheckbox("Enable Aimbot", false)
 
-local style = UI:Window({
-	Title = "style",
-	Size = UDim2.fromOffset(280, 360),
-	Position = UDim2.fromOffset(620, 80),
-})
-local theme = style:Section("Theme")
-```
-
-## Checkbox
-
-Boolean row. The callback runs on click and on creation. `:Side` sets the dim text on the right. `:Get` and `:Set` work on every control. Pass `true` as the second argument to `:Set` to skip the callback.
-
-```lua
-local enabled = aim:Checkbox("Enabled", true, function(on)
-	print(on)
-end)
-enabled:Side("none")
-
-print(enabled:Get())
-enabled:Set(false)
-enabled:Set(true, true) -- silent
-```
-
-## Slider
-
-Numeric row. Label on the left, value on the right, accent fill on the track. `fmt` is a `string.format` pattern or a function that returns the readout. Leave `fmt` nil for one decimal place.
-
-```lua
-aim:Slider("Field Of View", 0, 180, 90, "%.0f", function(v)
-	print(v)
-end)
-
-aim:Slider("Delay", 0, 200, 15, function(v)
-	return string.format("%dms", math.floor(v + 0.5))
-end)
-```
-
-## Dropdown
-
-Full-width box with a `+` on the right. Click to open the list. Pass a label, or skip it and give the option list as the first argument.
-
-```lua
-aim:Dropdown("Hitboxes", { "Head", "Stomach", "Arms" }, "Head", function(v)
-	print(v)
+-- Listen for changes
+aimbotEnabled:OnChange(function(value)
+    print("Aimbot is now:", value)
 end)
 
-aim:Dropdown({ "Static", "Dynamic" }, "Static", function(v)
-	print(v)
+-- Get or set the value programmatically
+local currentState = aimbotEnabled:Get() -- Returns boolean
+aimbotEnabled:Set(true) -- Forces the checkbox to true
+```
+
+### Slider
+
+A numeric value selector with a defined minimum and maximum.
+
+```lua
+local fovSlider = CombatTab:AddSlider("Field of View", 10, 180, 90)
+
+-- Listen for changes
+fovSlider:OnChange(function(value)
+    print("Current FOV:", value)
+end)
+
+-- Get or set the value
+local currentFOV = fovSlider:Get() -- Returns number
+fovSlider:Set(120) -- Forces slider to 120
+```
+
+### Dropdown
+
+A selection menu from a list of options.
+
+```lua
+local targetPart = CombatTab:AddDropdown("Target Part", {"Head", "Torso", "Random"})
+
+-- Listen for changes
+targetPart:OnChange(function(value)
+    print("Targeting:", value)
+end)
+
+-- Get or set the value
+local currentTarget = targetPart:Get() -- Returns string
+targetPart:Set("Head") -- Forces selection to "Head"
+```
+
+### Button
+
+A simple clickable action trigger.
+
+```lua
+local resetButton = SettingsTab:AddButton("Reset Settings")
+
+-- Listen for clicks
+resetButton:OnClick(function()
+    print("Settings reset!")
+    -- Add your reset logic here
 end)
 ```
 
-## Color
+### Keybind
 
-Label plus a color chip on the right. This does not open a picker. Push colors with `:Set`.
+A keyboard input catcher. Supports Toggle, Hold, and Always modes.
 
 ```lua
-local accent = theme:Color("Menu Accent", Color3.fromRGB(154, 112, 214), function(c)
-	print(c)
+local aimKey = CombatTab:AddKeybind("Aimbind", Enum.KeyCode.MouseRightButton, "Hold")
+
+-- Listen for key changes
+aimKey:OnBind(function(keyCode, mode)
+    print("Bound to:", keyCode.Name, "Mode:", mode)
 end)
 
-accent:Set(Color3.fromRGB(120, 80, 200))
+-- Get or set the keybind
+local currentKey = aimKey:Get() -- Returns Enum.KeyCode
+aimKey:Set(Enum.KeyCode.E) -- Changes keybind to 'E'
 ```
 
-## Keybind
+### Text Input
 
-Display row only. Click the value, the next keyboard key is stored, Escape clears it back to `none`. Insert renders as `ins`. Nothing else listens to the key.
+A text field for user input.
 
 ```lua
-local menuKey = aim:Keybind("MENU KEY", Enum.KeyCode.Insert, function(key)
-	print(key)
+local hostnameInput = SettingsTab:AddTextInput("Server Hostname", "Enter IP...")
+
+-- Listen for text submission (Enter key)
+hostnameInput:OnSubmit(function(text)
+    print("Connecting to:", text)
 end)
 
-print(menuKey:Get())
+-- Get or set the text
+local currentText = hostnameInput:Get() -- Returns string
+hostnameInput:Set("192.168.1.1") -- Sets the text field
 ```
 
-## Label
+---
 
-Dim single line. Not clickable.
+## Theming & Personalization
+
+InertiaUI is built with a reactive Theme Engine. Users can personalize the menu by switching themes or modifying the theme properties directly.
+
+### Switching Themes
+
+The library ships with two base themes: `Rounded` and `Square`.
 
 ```lua
-aim:Label("read only line")
+-- Switch the entire UI to Square mode
+Menu:SetTheme("Square")
+
+-- Switch back to Rounded
+Menu:SetTheme("Rounded")
 ```
 
-## Separator
+### Customizing Theme Colors
 
-One pixel horizontal rule.
+You can modify the active theme's colors on the fly. The UI will update instantly.
 
 ```lua
-aim:Separator()
+local currentTheme = Menu:GetTheme()
+
+-- Change the accent color to red
+currentTheme.Accent = Color3.fromRGB(255, 0, 0)
+
+-- Change the background color
+currentTheme.Background = Color3.fromRGB(10, 10, 10)
+
+-- Force the UI to redraw with new colors
+Menu:RefreshTheme()
 ```
 
-## Toolbar
+### Allowing User Personalization
 
-Centered strip of icon buttons. `Text` is the glyph. `Callback` is optional.
+If you want to expose theme settings to the end-user, add controls that modify the theme object:
 
 ```lua
-UI:Toolbar({
-	{ Text = "H", Callback = function()
-		main.Frame.Visible = not main.Frame.Visible
-	end },
-	{ Text = "P" },
-})
+local themeTab = Menu:Tab("Personalize")
+
+themeTab:AddButton("Switch to Square", function()
+    Menu:SetTheme("Square")
+end)
+
+themeTab:AddButton("Switch to Rounded", function()
+    Menu:SetTheme("Rounded")
+end)
+
+themeTab:AddColorPicker("Accent Color", Menu:GetTheme().Accent, function(newColor)
+    Menu:GetTheme().Accent = newColor
+    Menu:RefreshTheme()
+end)
 ```
 
-## Table
+---
 
-Scrolling rows inside a window body. `SetRows` replaces the body. Clicking a row sets `Selected` to a zero-based index and updates the footer.
+## Configuration System
+
+Save and load user preferences using the built-in JSON config system. This requires an executor that supports `writefile` and `readfile`.
+
+### Saving a Config
 
 ```lua
-local players = UI:Window({
-	Title = "players",
-	Size = UDim2.fromOffset(300, 280),
-	Position = UDim2.fromOffset(920, 80),
-})
-
-local rows = UI:Table(players.Body, { "name", "pos", "info" })
-rows:SetRows({
-	{ "name0", "pos0", "info0" },
-	{ "name1", "pos1", "info1" },
-})
-
-print(rows.Selected) -- -1 until a row is clicked
+-- Save the current state of all controls to a file
+Menu:SaveConfig("my_legit_config")
 ```
 
-## Destroy
-
-Removes the ScreenGui.
+### Loading a Config
 
 ```lua
-UI:Destroy()
+-- Load a previously saved config
+Menu:LoadConfig("my_legit_config")
 ```
+
+### Checking if a Config Exists
+
+```lua
+if Menu:ConfigExists("my_legit_config") then
+    Menu:LoadConfig("my_legit_config")
+else
+    print("Config not found, using defaults.")
+end
+```
+
+---
+
+## API Reference
+
+### `InertiaUI`
+| Method | Description |
+| :--- | :--- |
+| `Create(title: string, theme: string?) -> Window` | Initializes a new UI window. |
+
+### `Window`
+| Method | Description |
+| :--- | :--- |
+| `Tab(name: string) -> Tab` | Creates a new tab. |
+| `SetTheme(name: string)` | Switches the global theme. |
+| `GetTheme() -> ThemeConfig` | Returns the current theme object. |
+| `RefreshTheme()` | Forces a UI redraw with current theme colors. |
+| `SaveConfig(name: string)` | Saves control states to a JSON file. |
+| `LoadConfig(name: string)` | Loads control states from a JSON file. |
+| `ConfigExists(name: string) -> boolean` | Checks if a config file exists. |
+
+### `Tab` / `Section`
+| Method | Description | Returns |
+| :--- | :--- | :--- |
+| `AddCheckbox(label, default) -> Control` | Adds a boolean toggle. | `Control` |
+| `AddSlider(label, min, max, default) -> Control` | Adds a numeric slider. | `Control` |
+| `AddDropdown(label, options) -> Control` | Adds a selection list. | `Control` |
+| `AddButton(label, callback) -> Control` | Adds a clickable button. | `Control` |
+| `AddKeybind(label, default, mode) -> Control`| Adds a keybind catcher. | `Control` |
+| `AddTextInput(label, placeholder) -> Control`| Adds a text input field. | `Control` |
+
+### `Control`
+| Method | Description |
+| :--- | :--- |
+| `Get() -> any` | Returns the current value of the control. |
+| `Set(value: any)` | Forces the control to a specific value. |
+| `OnChange(callback)` | Fires when the user changes the value. |
+| `Destroy()` | Removes the control from the UI. |
