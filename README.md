@@ -1,5 +1,5 @@
-[EX]
-# ImGuiLib
+
+# InertiaLib
 
 Dear ImGui style UI framework for Roblox Luau. Windows, tabs, and controls only. No gameplay features.
 
