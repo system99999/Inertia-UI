@@ -1,6 +1,4 @@
---!strict
--- InertiaUI v6.0 - Production Build
--- Architecture: Modular, Observer-based Theming, Decoupled State.
+--system9999 dev
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
