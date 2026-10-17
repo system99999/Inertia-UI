@@ -1,32 +1,77 @@
-# InertiaUI Documentation
+# InertiaUI Framework Documentation
 
-This is a breakdown of how the framework is structured, how to initialize it, and how to use every control and feature it provides. The goal here is to give you a complete understanding of the architecture so you can integrate it into your scripts without guessing how the state management works.
+InertiaUI is a modular, type-safe ImGui-style UI framework for Roblox Luau. It is designed for performance, extensibility, and clean architecture, utilizing an observer pattern for live theme updates and decoupled state management for all controls.
 
-## Initialization and Base Window
+## Table of Contents
+- [Table of Constants & API Reference](#table-of-constants--api-reference)
+- [Installation & Setup](#installation--setup)
+- [Base Menu & Layout](#base-menu--layout)
+- [Controls](#controls)
+- [State Management](#state-management)
+- [Theming & Personalization](#theming--personalization)
+- [Configuration System](#configuration-system)
+- [Built-in Global Features](#built-in-global-features)
+- [Advanced Developer Documentation](#advanced-developer-documentation)
 
-The framework exposes a single global table when loaded. Depending on your environment, you will either pull it from the global environment or require it as a module.
+---
+
+## Table of Constants & API Reference
+
+### Global Functions
+| Constant / Function | Type | Description |
+| :--- | :--- | :--- |
+| `InertiaUI.Create(title, theme)` | `Function` | Initializes a new UI window. Returns a `Window` object. |
+| `InertiaUI.SaveConfig(name)` | `Function` | Serializes all control states to a JSON file. |
+| `InertiaUI.LoadConfig(name)` | `Function` | Reads a JSON file and applies values to controls. |
+| `Notify(title, text, duration)` | `Function` | Spawns a toast notification in the top-right corner. |
+
+### Theme Properties
+| Constant | Type | Default (Rounded) | Default (Square) | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `Radius` | `number` | `6` | `0` | Corner radius for all UI elements. |
+| `Accent` | `Color3` | `139, 92, 246` | `16, 185, 129` | Primary highlight color. |
+| `Background` | `Color3` | `24, 24, 27` | `18, 18, 18` | Main window background. |
+| `Surface` | `Color3` | `39, 39, 42` | `30, 30, 30` | Title bars, inputs, and elevated elements. |
+| `Border` | `Color3` | `63, 63, 70` | `50, 50, 50` | Stroke and border colors. |
+| `Text1` | `Color3` | `250, 250, 250` | `240, 240, 240` | Primary text color. |
+| `Text2` | `Color3` | `161, 161, 170` | `140, 140, 140` | Secondary/disabled text color. |
+
+### Control Methods
+| Method | Returns | Description |
+| :--- | :--- | :--- |
+| `:Get()` | `any` | Returns the current internal value of the control. |
+| `:Set(value)` | `void` | Forces the control to a specific value and updates UI. |
+| `:OnChange(callback)`| `void` | Appends a function to the control's callback array. |
+| `:Destroy()` | `void` | Removes the control instance from the UI. |
+
+---
+
+## Installation & Setup
+
+Load the script in your executor environment or require it as a ModuleScript.
 
 ```lua
 -- Executor environment
 local InertiaUI = getgenv().InertiaUI
 
 -- ModuleScript environment
-local InertiaUI = require(script.InertiaUI)
+local InertiaUI = require(script.Parent.InertiaUI)
 ```
 
-To start building the interface, you need to create a Window. This acts as the root container for everything else. The second argument determines the base aesthetic, specifically the corner radius and default color palette.
+---
+
+## Base Menu & Layout
+
+### Creating a Window
+The `Create` function initializes the root `ScreenGui` and the main draggable frame.
 
 ```lua
--- Creates a 500x600 window with rounded corners and the default purple theme
+-- Parameters: Title (string), Theme Name ("Rounded" or "Square")
 local Menu = InertiaUI.Create("Main Menu", "Rounded")
-
--- Creates the same window but with sharp, squared corners and a green/dark theme
-local Menu = InertiaUI.Create("Main Menu", "Square")
 ```
 
-## Layout: Tabs and Sections
-
-The UI is organized hierarchically. A Window contains Tabs, and Tabs contain Sections. Sections are just visual groupings to keep controls organized; they don't hold complex logic themselves.
+### Tabs and Sections
+The UI is organized hierarchically. Windows contain Tabs; Tabs contain Sections.
 
 ```lua
 -- Add tabs to the root window
@@ -34,180 +79,323 @@ local CombatTab = Menu:Tab("Combat")
 local VisualsTab = Menu:Tab("Visuals")
 local SettingsTab = Menu:Tab("Settings")
 
--- Create sections within those tabs to group related features
+-- Create sections within tabs to group controls
 local AimbotSection = CombatTab:Section("Aimbot Configuration")
-local TriggerbotSection = CombatTab:Section("Triggerbot")
 local ESPSection = VisualsTab:Section("Player ESP")
 ```
 
+---
+
 ## Controls
 
-Every control returns a state object. This object has methods to read the current value, force a value, and listen for changes. This separation keeps the UI rendering decoupled from your actual script logic.
+Controls are added directly to a `Tab` or a `Section`. They return a state object used for reading, writing, and listening to data.
 
 ### Checkbox
-
-Used for boolean toggles. It takes a label and a default boolean state.
-
+Boolean toggle.
 ```lua
-local AimbotEnabled = AimbotSection:AddCheckbox("Enable Aimbot", false)
+local Enabled = AimbotSection:AddCheckbox("Enable Aimbot", false)
 
--- The OnChange callback fires every time the user clicks the box.
--- 'value' is a boolean.
-AimbotEnabled:OnChange(function(value)
-    print("Aimbot state changed to:", value)
-    -- Hook this into your actual script logic
-    -- AimbotModule.Enabled = value 
+Enabled:OnChange(function(value)
+    print("Aimbot state:", value)
 end)
 
--- You can also read or force the state programmatically
-local currentState = AimbotEnabled:Get() -- Returns true or false
-AimbotEnabled:Set(true) -- Forces the UI and internal state to true
+-- Manual override
+Enabled:Set(true)
+local state = Enabled:Get()
 ```
 
 ### Slider
-
-Handles numeric interpolation between a minimum and maximum bound. The framework handles the mouse drag math, clamping, and visual updates internally.
-
+Numeric interpolation between a minimum and maximum bound.
 ```lua
--- Parameters: Label, Min, Max, Default Value
-local FOVSlider = AimbotSection:AddSlider("Field of View", 10, 180, 90)
+-- Parameters: Label, Min, Max, Default
+local FOV = AimbotSection:AddSlider("Field of View", 10, 180, 90)
 
--- Fires continuously while the user is dragging the slider.
--- 'value' is a number.
-FOVSlider:OnChange(function(value)
-    -- Update your internal variables in real-time
-    -- AimbotModule.Settings.FOV = value
-    -- FOVCircle.Size = UDim2.fromOffset(value * 2, value * 2)
+FOV:OnChange(function(value)
+    print("Current FOV:", value)
 end)
 
-local currentFOV = FOVSlider:Get() -- Returns 90
-FOVSlider:Set(120) -- Snaps the slider to 120
+FOV:Set(120)
+local val = FOV:Get()
 ```
 
 ### Dropdown
-
-Provides a selection from a predefined array of strings. It handles the overlay rendering so it doesn't push other UI elements down when opened.
-
+Selection from a predefined array of strings. Renders as an overlay.
 ```lua
--- Parameters: Label, Array of options, Default index (optional)
-local TargetPart = AimbotSection:AddDropdown("Target Part", {"Head", "Torso", "Random"}, 1)
+-- Parameters: Label, Options (array), Default Index (optional)
+local Target = AimbotSection:AddDropdown("Target Part", {"Head", "Torso", "Random"}, 1)
 
--- Fires when the user selects a new option. 'value' is the string they picked.
-TargetPart:OnChange(function(value)
-    print("Now targeting:", value)
+Target:OnChange(function(value)
+    print("Targeting:", value)
 end)
 
-local currentTarget = TargetPart:Get() -- Returns "Head"
-TargetPart:Set("Torso") -- Forces the dropdown to display and select "Torso"
+Target:Set("Head")
+```
+
+### Multi-Select Dropdown
+Allows selecting multiple options from an array. Returns a table of strings.
+```lua
+-- Parameters: Label, Options, Default (nil), isMulti (boolean)
+local ESPElements = ESPSection:AddDropdown("ESP Elements", {"Box", "Name", "Health"}, nil, true)
+
+ESPElements:OnChange(function(values)
+    -- values is a table, e.g., {"Box", "Health"}
+    print("Active ESP:", table.concat(values, ", "))
+end)
 ```
 
 ### Button
-
-A simple execution trigger. It doesn't hold state; it just fires a callback when clicked.
-
+Execution trigger. Does not hold state.
 ```lua
-local ResetButton = SettingsTab:AddButton("Reset to Defaults")
+local ResetBtn = SettingsTab:AddButton("Reset to Defaults")
 
--- Fires once per click.
-ResetButton:OnClick(function()
-    print("Resetting configuration...")
-    -- Clear your internal tables or reload defaults here
+ResetBtn:OnClick(function()
+    print("Settings reset")
 end)
 ```
 
 ### Keybind
-
-Captures keyboard or mouse input. It supports different activation modes (Toggle, Hold, Always) which you can define in your own logic based on what the user sets.
-
+Captures keyboard or mouse input. Supports "Toggle", "Hold", and "Always" modes.
 ```lua
--- Parameters: Label, Default KeyCode, Activation Mode
+-- Parameters: Label, Default KeyCode, Mode
 local AimKey = AimbotSection:AddKeybind("Aimbind", Enum.KeyCode.MouseRightButton, "Hold")
 
--- Fires when the user successfully binds a new key.
 AimKey:OnBind(function(keyCode, mode)
-    print("Keybind updated to:", keyCode.Name, "Mode:", mode)
+    print("Bound to:", keyCode.Name, "Mode:", mode)
 end)
 
-local boundKey = AimKey:Get() -- Returns Enum.KeyCode.MouseRightButton
-AimKey:Set(Enum.KeyCode.E) -- Changes the bound key to 'E'
+AimKey:Set(Enum.KeyCode.E)
 ```
 
 ### Text Input
-
-A standard text field for string entry. It handles focus states and clears the placeholder text when the user clicks inside.
-
+Standard text field for string entry.
 ```lua
 -- Parameters: Label, Placeholder text
 local ServerIP = SettingsTab:AddTextInput("Server Hostname", "Enter IP address...")
 
--- Fires when the user presses Enter or clicks outside the box (loses focus).
 ServerIP:OnSubmit(function(text)
-    print("User submitted:", text)
+    print("Submitted:", text)
 end)
 
-local currentText = ServerIP:Get() -- Returns the string inside the box
-ServerIP:Set("192.168.1.1") -- Programmatically sets the text
+ServerIP:Set("192.168.1.1")
 ```
 
-## Theming and Personalization
+### Color Picker
+RGB and Hex input with a live preview.
+```lua
+-- Parameters: Label, Default Color3
+local AccentColor = SettingsTab:AddColorPicker("Menu Accent", Color3.fromRGB(139, 92, 246))
 
-The framework uses an observer pattern for its theme engine. When you change a theme property, the UI doesn't just rebuild; it listens for the change and updates the specific instances in real-time. This is what allows for live personalization without lag.
+AccentColor:OnChange(function(color)
+    print("Selected color:", color)
+end)
+```
+
+---
+
+## State Management
+
+Every control returns a state table. This separates the UI rendering from your script logic.
+
+### The State Object
+```lua
+local state = {
+    value = defaultValue,
+    callbacks = {},
+    Get = function() return state.value end,
+    Set = function(v) state.value = v; -- update UI end,
+    OnChange = function(cb) table.insert(state.callbacks, cb) end
+}
+```
+
+### Bridging to Script Logic
+```lua
+local fovSlider = AimbotSection:AddSlider("FOV", 10, 180, 90)
+
+-- Method 1: Using the callback
+fovSlider:OnChange(function(val)
+    MyScript.Settings.FOV = val
+end)
+
+-- Method 2: Polling the value in a loop
+task.spawn(function()
+    while true do
+        MyScript.Settings.FOV = fovSlider:Get()
+        task.wait(0.1)
+    end
+end)
+```
+
+---
+
+## Theming & Personalization
+
+The framework uses an observer pattern. Modifying the theme object updates all subscribed UI elements instantly without rebuilding the DOM.
 
 ### Switching Base Themes
-
-You can swap between the predefined themes instantly.
-
 ```lua
-Menu:SetTheme("Square") -- Switches to sharp corners and the green/dark palette
-Menu:SetTheme("Rounded") -- Switches back to rounded corners and purple palette
+Menu:SetTheme("Square") -- Sharp corners, green/dark palette
+Menu:SetTheme("Rounded") -- Rounded corners, purple palette
 ```
 
-### Modifying Colors Live
-
-If you want to let the user pick their own colors, you can modify the active theme object directly and force a refresh.
-
+### Live Color Modification
 ```lua
--- Get the current theme table
 local ActiveTheme = Menu:GetTheme()
 
--- Change the accent color to red
+-- Modify the table directly
 ActiveTheme.Accent = Color3.fromRGB(255, 0, 0)
-
--- Change the background color
 ActiveTheme.Background = Color3.fromRGB(10, 10, 10)
 
--- Tell the UI to redraw all elements with the new values
-Menu:RefreshTheme()
+-- The UI updates automatically via the observer pattern. 
+-- If a specific element doesn't update, force a refresh:
+Menu:RefreshTheme() 
 ```
+
+---
 
 ## Configuration System
 
-The framework includes a built-in serialization system to save and load the state of all controls. This requires an executor that supports the `writefile` and `readfile` functions. It converts the state of every registered control into a JSON string and writes it to the file system.
+Requires an executor with file system access (`writefile`, `readfile`, `isfile`).
 
 ### Saving and Loading
-
 ```lua
--- Saves the current state of every control in the menu to a file named "legit_config.json"
-Menu:SaveConfig("legit_config")
+-- Save current state of all registered controls
+InertiaUI.SaveConfig("legit_config")
 
--- Reads "legit_config.json" and applies the saved values to all matching controls
-Menu:LoadConfig("legit_config")
-```
+-- Load a saved config
+InertiaUI.LoadConfig("legit_config")
 
-### Checking Existence
-
-It is good practice to check if a config exists before trying to load it, usually on script startup.
-
-```lua
-if Menu:ConfigExists("legit_config") then
-    Menu:LoadConfig("legit_config")
-else
-    print("No saved config found, using default values.")
+-- Check existence before loading
+if InertiaUI.ConfigExists("legit_config") then
+    InertiaUI.LoadConfig("legit_config")
 end
 ```
 
-## Architecture Notes
+---
 
-The code is structured to keep the UI layer completely separate from your game logic. The controls don't know what an "Aimbot" is; they only know they hold a boolean or a number. 
+## Built-in Global Features
 
-When you use `:OnChange()`, you are bridging the gap between the UI state and your script's internal state. This design prevents the UI from breaking if you change how your actual hack or script works under the hood. You just update the callback logic, and the UI remains stable.
+### Watermark
+A draggable overlay in the top-left corner. Displays real-time FPS and network ping.
+```lua
+-- The watermark is initialized automatically when the first Window is created.
+-- To move it programmatically:
+-- (Access the internal WMFrame if exposed, or rely on user dragging)
+```
+
+### Search Bar
+Located at the top of the content area. Filters sections by name in real-time.
+```lua
+-- No configuration required. Type in the box to hide non-matching sections.
+```
+
+### Minimize & Resize
+- **Minimize:** Click the `_` icon in the top-right title bar to collapse the window to the title bar only.
+- **Resize:** Drag the bottom-right corner of the window frame. Minimum size is clamped at 300x200.
+
+### Notifications
+```lua
+-- Parameters: Title, Text, Duration (seconds)
+Notify("System", "Configuration saved successfully.", 3)
+```
+
+---
+
+## Advanced Developer Documentation
+
+### Internal Architecture
+The UI is decoupled from game logic. The `ThemeManager` holds the global state. When `ThemeManager:Set()` is called, it iterates through `_themeListeners` and pushes the new theme data to every UI element that subscribed to it.
+
+### Building Custom Controls
+To add a new control type, follow this blueprint:
+
+1. Create a container `Frame`.
+2. Build visual elements using `UI.Create`, `UI.Corner`, and `UI.Stroke`.
+3. Define a state table with a `callbacks` array.
+4. Hook `UserInputService` or `InputBegan` events to modify the state.
+5. Subscribe to `ThemeManager` to update colors dynamically.
+6. Register the control so it integrates with the Config system.
+
+```lua
+function Controls.CustomControl(parent, label, default)
+    local container = UI.Create("Frame", {Size=UDim2.new(1,0,0,24), BackgroundTransparency=1}, parent)
+    
+    -- Build UI...
+    local state = {value = default, callbacks = {}}
+    
+    -- Hook input...
+    container.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            state.value = not state.value
+            for _, cb in ipairs(state.callbacks) do cb(state.value) end
+        end
+    end)
+    
+    -- Subscribe to theme
+    ThemeManager:Subscribe(function(t)
+        -- Update colors here
+    end)
+    
+    -- Register for Config
+    RegisterControl({
+        Name = label, 
+        Type = "CustomControl", 
+        Get = function() return state.value end, 
+        Set = function(v) state.value = v end
+    })
+    
+    return state
+end
+```
+
+### Overlay Systems (Tooltips & Context Menus)
+
+**Tooltips:**
+The `TooltipGui` is hidden by default. Hook it to any element's mouse events:
+```lua
+myElement.MouseEnter:Connect(function()
+    TooltipText.Text = "Tooltip text here."
+    TooltipFrame.Visible = true
+end)
+myElement.MouseLeave:Connect(function()
+    TooltipFrame.Visible = false
+end)
+```
+
+**Context Menus (Right-Click):**
+The `ContextGui` acts as a dynamic container.
+```lua
+myElement.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton2 then
+        -- Clear old options
+        for _, child in ipairs(ContextFrame:GetChildren()) do 
+            if child:IsA("TextButton") then child:Destroy() end 
+        end
+        
+        -- Add new options
+        local btn = UI.Create("TextButton", {Text="Option 1", BackgroundTransparency=1}, ContextFrame)
+        btn.MouseButton1Click:Connect(function() print("Clicked"); ContextFrame.Visible = false end)
+        
+        ContextFrame.Size = UDim2.fromOffset(120, 22)
+        ContextFrame.Position = UDim2.fromOffset(i.Position.X, i.Position.Y)
+        ContextFrame.Visible = true
+    end
+end)
+```
+
+### Extending the Config System
+To save custom data (like window position) alongside control states, modify the `InertiaUI.SaveConfig` function:
+
+```lua
+function InertiaUI.SaveConfig(name)
+    local data = {}
+    for _, c in ipairs(ControlRegistry) do data[c.Name] = c.Get() end
+    
+    -- Inject custom metadata
+    data["_Meta"] = {
+        WindowPos = Menu.Main.Position,
+        Theme = "Rounded"
+    }
+    
+    writefile("Inertia_"..name..".json", HttpService:JSONEncode(data))
+end
+```
